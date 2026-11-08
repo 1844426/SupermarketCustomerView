@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Tablet Screen</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #eef2f7;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            justify-content: space-between;
+        }
+        .header {
+            text-align: center;
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .screen-content {
+            flex: 1;
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            text-align: center;
+        }
+        .cart-list {
+            list-style: none;
+            padding: 0;
+            text-align: left;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .cart-item img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 15px;
+        }
+        .item-info {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        .total-bar {
+            background: #28a745;
+            color: white;
+            padding: 20px;
+            font-size: 26px;
+            font-weight: bold;
+            border-radius: 8px;
+            text-align: right;
+        }
+        #paymentScreen, #thankYouScreen {
+            display: none;
+            font-size: 20px;
+            margin-top: 20px;
+        }
+        .payment-box {
+            border: 2px solid #007bff;
+            padding: 25px;
+            border-radius: 10px;
+            max-width: 400px;
+            margin: 0 auto;
+            background: #f8f9fa;
+        }
+        input[type="password"] {
+            padding: 10px;
+            font-size: 18px;
+            width: 80%;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .status-msg {
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1 id="headerTitle">🛍️ Welcome to Our Store!</h1>
+    </div>
+
+    <div class="screen-content">
+        <!-- Step 1: Shopping Cart View -->
+        <div id="shoppingScreen">
+            <h3>Your Scanned Items</h3>
+            <ul class="cart-list" id="customerCartList">
+                <!-- Items populate here -->
+            </ul>
+        </div>
+
+        <!-- Step 2: Payment View (Card Number Input) -->
+        <div id="paymentScreen">
+            <h2>💳 Payment Required</h2>
+            <div class="payment-box">
+                <p>Please enter your card number:</p>
+                <input type="password" id="cardNumberInput" placeholder="Enter PIN (e.g., 12345)"><br>
+                <button onclick="submitCard()">Pay Now</button>
+                <div class="status-msg" id="paymentStatus"></div>
+                <br>
+                <button id="registerCardBtn" style="display:none; background:#ffc107; color:#333;" onclick="requestCardRegistration()">Register Card Number</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Thank You View -->
+        <div id="thankYouScreen">
+            <h1 style="color: #28a745;">🎉 Thank you for shopping with us today!</h1>
+            <p>We hope to see you again soon!</p>
+        </div>
+    </div>
+
+    <div class="total-bar">
+        Total: $<span id="customerTotal">0.00</span>
+    </div>
+
+<script>
+    function checkState() {
+        const step = localStorage.getItem('checkoutStep') || 'shopping';
+        const cart = JSON.parse(localStorage.getItem('shopCart')) || [];
+        const cardStatus = localStorage.getItem('cardStatus') || '';
+
+        // Update Cart & Total
+        const cartList = document.getElementById('customerCartList');
+        cartList.innerHTML = '';
+        let total = 0;
+
+        cart.forEach(item => {
+            total += item.price;
+            cartList.innerHTML += `
+                <li class="cart-item">
+                    <div class="item-info">
+                        <img src="${item.img}" alt="${item.name}">
+                        <span>${item.name}</span>
+                    </div>
+                    <strong>$${item.price.toFixed(2)}</strong>
+                </li>
+            `;
+        });
+
+        document.getElementById('customerTotal').innerText = total.toFixed(2);
+
+        // Handle Screen Switching
+        const shoppingScreen = document.getElementById('shoppingScreen');
+        const paymentScreen = document.getElementById('paymentScreen');
+        const thankYouScreen = document.getElementById('thankYouScreen');
+        const headerTitle = document.getElementById('headerTitle');
+
+        if (step === 'shopping') {
+            shoppingScreen.style.display = 'block';
+            paymentScreen.style.display = 'none';
+            thankYouScreen.style.display = 'none';
+            headerTitle.innerText = "🛍️ Welcome to Our Store!";
+            localStorage.removeItem('cardStatus');
+            document.getElementById('paymentStatus').innerText = '';
+            document.getElementById('registerCardBtn').style.display = 'none';
+            document.getElementById('cardNumberInput').value = '';
+        } else if (step === 'payment') {
+            shoppingScreen.style.display = 'none';
+            paymentScreen.style.display = 'block';
+            thankYouScreen.style.display = 'none';
+            headerTitle.innerText = "Please Complete Payment";
+
+            if (cardStatus === 'approved') {
+                document.getElementById('paymentStatus').innerHTML = "✅ Card Approved & Registered! Processing payment...";
+                setTimeout(() => {
+                    localStorage.setItem('checkoutStep', 'thankyou');
+                }, 2000);
+            } else if (cardStatus === 'disapproved') {
+                document.getElementById('paymentStatus').innerHTML = "❌ Disapproved by the cashier, have a nice day!";
+                document.getElementById('registerCardBtn').style.display = 'none';
+            }
+        } else if (step === 'thankyou') {
+            shoppingScreen.style.display = 'none';
+            paymentScreen.style.display = 'none';
+            thankYouScreen.style.display = 'block';
+            headerTitle.innerText = "Order Complete";
+        }
+    }
+
+    function submitCard() {
+        const pin = document.getElementById('cardNumberInput').value.trim();
+        const statusDiv = document.getElementById('paymentStatus');
+        const registerBtn = document.getElementById('registerCardBtn');
+
+        if (!pin) {
+            alert("Please enter a card number!");
+            return;
+        }
+
+        statusDiv.innerText = "⏳ Authorizing, please wait...";
+        registerBtn.style.display = 'none';
+
+        setTimeout(() => {
+            let registeredCards = JSON.parse(localStorage.getItem('registeredCards')) || ["12345"];
+
+            if (registeredCards.includes(pin)) {
+                statusDiv.innerText = "✅ Authorized Successfully!";
+                setTimeout(() => {
+                    localStorage.setItem('checkoutStep', 'thankyou');
+                }, 1500);
+            } else {
+                statusDiv.innerText = "❌ Declined: Card not recognized.";
+                registerBtn.style.display = 'inline-block';
+                localStorage.setItem('pendingCard', pin);
+            }
+        }, 2000);
+    }
+
+    function requestCardRegistration() {
+        localStorage.setItem('cardApprovalRequest', 'pending');
+        document.getElementById('paymentStatus').innerText = "⏳ Request sent to cashier... Waiting for approval.";
+        document.getElementById('registerCardBtn').style.display = 'none';
+    }
+
+    setInterval(checkState, 500);
+    checkState();
+</script>
+
+</body>
+</html>s
